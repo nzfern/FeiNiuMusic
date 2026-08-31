@@ -1,0 +1,52 @@
+services:
+  api:
+    build:
+      context: .
+      target: api
+      args:
+        UPSTREAM_REF: ${UPSTREAM_REF:-ad9ce203cbb7fdb54f9404a7abb2df605893f388}
+    image: fn-music-bridge-api:local
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Pacific/Auckland}
+      YINQIAO_API_LISTEN: 0.0.0.0:18090
+      YINQIAO_UPSTREAM_UNIX_SOCKET: /var/run/trim_music.socket
+      YINQIAO_API_ALLOWED_ORIGINS: ${YINQIAO_API_ALLOWED_ORIGINS:-*}
+      YINQIAO_API_KEY: ${YINQIAO_API_KEY:-}
+    volumes:
+      # fnOS official FeiNiu Music socket. The source path must exist on the host.
+      - /var/run/trim_music.socket:/var/run/trim_music.socket
+    networks:
+      - yinqiao
+
+  service:
+    build:
+      context: .
+      target: service
+      args:
+        UPSTREAM_REF: ${UPSTREAM_REF:-ad9ce203cbb7fdb54f9404a7abb2df605893f388}
+    image: fn-music-bridge-service:local
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      TZ: ${TZ:-Pacific/Auckland}
+      YINQIAO_SERVICE_LISTEN: 0.0.0.0:14040
+      YINQIAO_API_URL: http://api:18090/yinqiao/v1
+      YINQIAO_CREDENTIAL_FILE: /data/yinqiao-credentials.enc
+      YINQIAO_CREDENTIAL_KEY_FILE: /data/yinqiao-credentials.key
+      YINQIAO_SETTINGS_FILE: /data/yinqiao-settings.json
+      YINQIAO_ENABLE_SUBSONIC: ${YINQIAO_ENABLE_SUBSONIC:-true}
+      YINQIAO_ENABLE_AMPACHE: ${YINQIAO_ENABLE_AMPACHE:-true}
+      YINQIAO_ENABLE_SYNOLOGY: ${YINQIAO_ENABLE_SYNOLOGY:-true}
+      YINQIAO_ENABLE_JELLYFIN: ${YINQIAO_ENABLE_JELLYFIN:-true}
+    ports:
+      - "${YINQIAO_PORT:-14040}:14040"
+    volumes:
+      - ./data:/data
+    networks:
+      - yinqiao
+
+networks:
+  yinqiao:
+    driver: bridge
